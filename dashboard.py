@@ -1,5 +1,3 @@
-
-
 import sqlite3
 import pandas as pd
 import plotly.graph_objects as go
@@ -49,7 +47,6 @@ df = df_decisions.iloc[::-1].reset_index(drop=True)
 latest = df.iloc[-1]
 source_type = df_sensor["source_type"].iloc[0] if not df_sensor.empty else "N/A"
 
-# --- TOP METRIC CARDS ---
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -73,7 +70,6 @@ with col3:
 with col4:
     st.metric("Active Gate Directive", latest["gate_action"])
 
-# --- LIVE HYDROGRAPH PLOT ---
 fig = go.Figure()
 
 fig.add_trace(
