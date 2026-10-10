@@ -84,6 +84,50 @@ def ingest_physical_sensor(data: HardwareTelemetry):
 
 
 class HydrographSimulator:
+    def __init__(
+        self,
+        drought_flow: float = 15000.0,    
+        nominal_flow: float = 45000.0,    
+        extreme_peak: float = 230000.0,   
+        cycle_minutes: float = 20.0,      
+        step_interval_sec: int = 2
+    ):
+        self.drought_flow = drought_flow
+        self.nominal_flow = nominal_flow
+        self.extreme_peak = extreme_peak
+        self.cycle_seconds = cycle_minutes * 60.0
+        self.step_sec = step_interval_sec
+        self.elapsed = 0.0
+
+    def get_next_reading(self) -> float:
+        phase = (self.elapsed % self.cycle_seconds) / self.cycle_seconds
+
+        if phase < 0.35:
+            
+            t_norm = phase / 0.35
+            base = self.drought_flow + (self.nominal_flow - self.drought_flow) * (0.5 + 0.5 * np.sin(t_norm * 2 * np.pi))
+            noise = np.random.normal(0, 0.015 * base)
+            reading = base + noise
+
+        elif 0.35 <= phase < 0.75:
+            
+            t_spike = (phase - 0.35) / 0.40
+            surge_magnitude = self.extreme_peak - self.nominal_flow
+            # Asymmetrical steep rise, sustained peak, and taper
+            surge = surge_magnitude * np.sin(t_spike * np.pi)
+            noise = np.random.normal(0, 0.03 * (self.nominal_flow + surge))
+            reading = self.nominal_flow + surge + noise
+
+        else:
+            
+            t_decay = (phase - 0.75) / 0.25
+            decay_curve = np.exp(-3.0 * t_decay)
+            reading = self.nominal_flow + (SAFE_CAPACITY_CUSECS - self.nominal_flow) * decay_curve
+            noise = np.random.normal(0, 0.02 * reading)
+            reading += noise
+
+        self.elapsed += self.step_sec
+        return max(5000.0, reading)
 
     def __init__(
         self,
@@ -113,8 +157,7 @@ class HydrographSimulator:
         noise = np.random.normal(0, 0.02 * self.base_flow)
         reading = max(0.0, self.base_flow + surge + noise)
         self.elapsed += self.step_sec
-        return reading
-
+        return readin
 
 def run_continuous_simulation():
     """Continuously writes simulated hydrograph readings into the database."""
